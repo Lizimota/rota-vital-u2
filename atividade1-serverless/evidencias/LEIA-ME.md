@@ -1,6 +1,6 @@
 # Evidências da Atividade 1
 
-Prints a colocar nesta pasta (nomes sugeridos):
+Prints da execução local (Windows 11 + Git Bash):
 
 | Arquivo | O que mostrar |
 |---|---|
@@ -12,4 +12,5 @@ Prints a colocar nesta pasta (nomes sugeridos):
 | `06-start-api-warm-lazy.png` | três curls com `invocacaoNesteAmbiente: 1, 2, 3` |
 | `07-erro-400.png` | curl sem `requisicaoId` devolvendo 400 |
 | `08-timeout-3s.png` | `demorar=true` com erro de timeout (terminal do curl e do start-api) |
-| `09-timeout-10s.png` | `template.yaml` com Timeout 10 e a resposta 201 |
+| `09-timeout-10s.png` | `template.yaml` com Timeout 10 |
+| `09b-timeout-10s-resposta.png` | resposta 201 com a guia G-R-003 depois do ajuste |

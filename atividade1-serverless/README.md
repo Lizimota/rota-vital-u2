@@ -102,23 +102,23 @@ Depois trocar `Timeout: 3` por `Timeout: 10` no `template.yaml`, rodar `sam buil
 
 ## Resultados registrados
 
-> ⚠️ Preencher com os valores que aparecerem na sua máquina (os prints vão em `evidencias/`).
+Valores medidos na minha máquina (Windows 11, Git Bash, Docker Desktop 29.9.3, SAM CLI 1.172.1). Prints em [`evidencias/`](evidencias/).
 
 | Experimento | Resultado |
 |---|---|
-| `sam local invoke` 1ª vez | Duration ⚠️ ___ ms · Init Duration ⚠️ ___ ms · comando inteiro ⚠️ ___ s |
-| `sam local invoke` 2ª vez | Duration ⚠️ ___ ms · Init Duration ⚠️ ___ ms · comando inteiro ⚠️ ___ s |
+| `sam local invoke` 1ª vez | Duration 137,71 ms · Init Duration 0,05 ms · comando inteiro (`real`) **59,9 s** |
+| `sam local invoke` 2ª vez | Duration 86,18 ms · Init Duration 0,81 ms · comando inteiro (`real`) **9,6 s** |
 | 3 curls sem `--warm-containers` | `invocacaoNesteAmbiente`: 1, 1, 1 |
 | 3 curls com `--warm-containers LAZY` | `invocacaoNesteAmbiente`: 1, 2, 3 |
-| `demorar=true` com Timeout 3 | ⚠️ mensagem de erro (ex.: `Function 'GuiaTransporteFunction' timed out after 3 seconds`) e HTTP ⚠️ ___ |
-| `demorar=true` com Timeout 10 | HTTP 201 depois de ~5 s, guia `G-R-003` |
+| `demorar=true` com Timeout 3 | `Function 'GuiaTransporteFunction' timed out after 3 seconds`, Duration 3000 ms; curl recebeu **HTTP 502 Bad Gateway** com `{"message":"Internal server error"}` |
+| `demorar=true` com Timeout 10 | **HTTP 201 Created** depois de ~5 s, guia `G-R-003` |
 
 ## Respostas
 
 **1. Por que a primeira invocação demorou mais que a segunda? O que acontece na fase de Init?**
 
 Na primeira execução o ambiente ainda não existe. Ele precisa ser criado do zero: o Docker baixa a imagem do runtime Python 3.12 (só na primeira vez da máquina), sobe o container, carrega o runtime e importa o meu `app.py`, rodando o código que está fora do handler (como `contador = 0`). Isso é a fase de **Init**, o famoso cold start. Só depois vem a fase **Invoke**, que roda o `lambda_handler`.
-No `sam local invoke` cada comando cria um container novo, então as duas execuções passam pelo Init. A diferença grande no meu caso (⚠️ ___ s contra ___ s) veio principalmente do download da imagem e do cache do Docker na primeira vez. Na nuvem a lógica é parecida: a primeira chamada paga o Init, e as seguintes, se caírem num ambiente já quente, pulam essa etapa e ficam bem mais rápidas.
+No `sam local invoke` cada comando cria um container novo, então as duas execuções passam pelo Init. A diferença grande no meu caso (59,9 s na primeira contra 9,6 s na segunda) veio principalmente da preparação da imagem: na primeira vez apareceu `Local image was not found` e `Building image...`, e na segunda `Local image is up-to-date`. A execução do handler em si foi curta nas duas (137 ms e 86 ms). O `Init Duration` saiu quase zero (0,05 ms e 0,81 ms) porque o emulador local não mede o Init como a AWS mede; na nuvem esse número aparece de verdade no CloudWatch. Na nuvem a lógica é parecida: a primeira chamada paga o Init, e as seguintes, se caírem num ambiente já quente, pulam essa etapa e ficam bem mais rápidas.
 
 **2. O que o campo `invocacaoNesteAmbiente` mostrou com e sem `--warm-containers`? O que isso diz sobre guardar estado numa variável global?**
 
@@ -127,7 +127,7 @@ A conclusão é que variável global **não é lugar para guardar estado de neg�
 
 **3. O que aconteceu com `demorar = true`? Qual o tempo máximo de uma execução no Lambda, e o que fazer com um trabalho mais longo?**
 
-Com `Timeout: 3`, a função dormiu 5 s e foi interrompida aos 3 s. O SAM registrou ⚠️ `timed out after 3 seconds` e o curl recebeu ⚠️ erro (HTTP 502) em vez da guia. Depois de subir para `Timeout: 10` e rodar `sam build`, a mesma chamada devolveu 201 com a guia em uns 5 s.
+Com `Timeout: 3`, a função dormiu 5 s e foi interrompida aos 3 s. O SAM registrou `Function 'GuiaTransporteFunction' timed out after 3 seconds` (Duration 3000 ms) e o curl recebeu `HTTP 502 Bad Gateway` com `Internal server error` em vez da guia. Depois de subir para `Timeout: 10` e rodar `sam build`, a mesma chamada devolveu 201 com a guia em uns 5 s.
 O máximo no Lambda é **15 minutos (900 s)**. Para trabalho mais longo dá para quebrar o processo em etapas orquestradas pelo **Step Functions**, colocar os itens numa **fila (SQS)** e processar em partes, ou mandar o trabalho para um serviço sem esse limite, como um container no **ECS/Fargate** ou um job do **AWS Batch**. Também vale lembrar que, atrás do API Gateway, o limite prático de resposta HTTP é bem menor (29 s por padrão), então chamada síncrona demorada já é sinal de que o desenho tem que ser assíncrono.
 
 **4. Custo de 1 milhão de execuções com 128 MB e 100 ms (us-east-1, sem faixa gratuita)**
@@ -150,7 +150,7 @@ Não faria sentido no rastreamento em tempo real do transporte (conexão contín
 
 - **Ferramenta:** Claude (Anthropic).
 - **Finalidade:** apoio na organização do repositório e do README, revisão do código do enunciado (foi a IA que apontou que o evento gerado pelo SAM vem em Base64 e quebraria o `json.loads`) e revisão das respostas.
-- **Como validei:** ⚠️ rodei todos os comandos do passo a passo na minha máquina, conferi as saídas (prints em `evidencias/`), refiz a conta de custo à mão e conferi o limite de 15 minutos e a fase de Init na documentação oficial do Lambda. As respostas foram reescritas com os meus resultados.
+- **Como validei:** rodei todos os comandos do passo a passo na minha máquina, conferi as saídas (prints em `evidencias/`), refiz a conta de custo à mão e conferi o limite de 15 minutos e a fase de Init na documentação oficial do Lambda. As respostas foram reescritas com os meus resultados.
 
 ## Referências
 
