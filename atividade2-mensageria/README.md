@@ -5,6 +5,11 @@ Aluna: Eliziane
 
 Fila compatível com o Amazon SQS, um produtor e dois consumidores. O produtor publica pedidos de guia de transporte do Rota Vital; os consumidores retiram, geram a guia e só então confirmam (apagam) a mensagem.
 
+
+**Vídeo da demonstração (2:00):** https://drive.google.com/file/d/1J1qE5Jh1LV92anGYNE9QPX6Xrfz57SsW/view?usp=drivesdk
+
+> No vídeo, os trechos de espera sem fala (consumidor aguardando a reentrega e a contagem de 50 s) estão acelerados para caber em 3 minutos; os horários reais aparecem nos logs.
+
 ## Caminho escolhido
 
 **Caminho A: ElasticMQ local em Docker.** O ElasticMQ implementa a mesma API do Amazon SQS, então o código é o mesmo do SQS mudando só o endereço. Não precisa de conta nem cartão.
