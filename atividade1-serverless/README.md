@@ -5,6 +5,8 @@ Aluna: Eliziane
 
 Função HTTP que recebe uma requisição do Rota Vital e devolve a **guia de transporte** da requisição.
 
+**Vídeo da demonstração (2:38):** https://drive.google.com/file/d/188K21rxq9uOdkC-G7VUmNGg9-mM9C13u/view?usp=drivesdk
+
 ## Caminho escolhido
 
 **Caminho A: AWS SAM CLI local** (Docker + SAM CLI + Python 3.12). Tudo roda no meu computador, sem conta na AWS. O evento usado no `sam local invoke` tem o mesmo formato que o Lambda recebe do API Gateway na nuvem.
@@ -14,6 +16,7 @@ Função HTTP que recebe uma requisição do Rota Vital e devolve a **guia de tr
 ```
 atividade1-serverless/
 ├── template.yaml            # SAM: rota POST /guias, Timeout 3 s, 128 MB
+├── demo_video.sh            # roteiro automatizado usado na gravação do vídeo
 ├── hello_world/
 │   ├── app.py               # handler que gera a guia
 │   └── requirements.txt
