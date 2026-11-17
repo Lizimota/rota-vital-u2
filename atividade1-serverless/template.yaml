@@ -1,0 +1,37 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  rota-vital-guias
+
+  Funcao serverless que recebe uma requisicao do Rota Vital e devolve a guia de transporte.
+  Projeto gerado com "sam init" (AWS Quick Start Templates > Hello World Example > Python 3.12 > zip)
+  e adaptado: caminho /hello -> /guias e metodo get -> post.
+
+Globals:
+  Function:
+    Timeout: 3          # Passo 5: trocar para 10, rodar "sam build" e repetir o teste com demorar=true
+    MemorySize: 128
+
+Resources:
+  GuiaTransporteFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: hello_world/
+      Handler: app.lambda_handler
+      Runtime: python3.12
+      Architectures:
+        - x86_64
+      Events:
+        EmitirGuia:
+          Type: Api
+          Properties:
+            Path: /guias
+            Method: post
+
+Outputs:
+  GuiasApi:
+    Description: "Endpoint do API Gateway (stage Prod) para a funcao de guias"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/guias/"
+  GuiaTransporteFunction:
+    Description: "ARN da funcao Lambda"
+    Value: !GetAtt GuiaTransporteFunction.Arn

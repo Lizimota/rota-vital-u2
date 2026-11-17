@@ -1,0 +1,1 @@
+# A função usa só a biblioteca padrão do Python (json, time).
