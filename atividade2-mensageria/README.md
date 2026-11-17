@@ -17,6 +17,7 @@ atividade2-mensageria/
 ├── consumidor.py           # recebe, processa, e só depois apaga
 ├── criar_filas_com_dlq.py  # opcional: fila "guias" com DLQ (maxReceiveCount=3)
 ├── ver_dlq.py              # opcional: mostra o que caiu na DLQ
+├── demo_fila.sh            # roda toda a demonstração (usado nos prints e no vídeo)
 └── evidencias/             # prints dos comandos e saídas
 ```
 
@@ -95,25 +96,39 @@ SQS_ENDPOINT="" python produtor.py
 
 ## Resultados registrados
 
-Teste de validação do código feito antes da gravação (dois consumidores, emulador da API SQS):
+Valores da execução na minha máquina (Windows 11, Git Bash, Docker Desktop, ElasticMQ 1.7.1, AWS CLI 2.40.2, boto3 1.42.62). Prints em [`evidencias/`](evidencias/).
+
+**Um consumidor (PID 8392):**
 
 ```
-consumidor PID 633                     consumidor PID 635
-15:30:52 633 guia G-R-002              15:30:52 635 guia G-R-001
-15:30:52 633 guia G-R-004              15:30:52 635 guia G-R-003
-15:30:52 633 guia G-R-005              15:30:52 635 guia G-R-006
-...  (10 guias)                        ...  (10 guias)
-15:30:52 falhou; ... ReceiveCount: 1   15:31:08 falhou; ... ReceiveCount: 2
-                                       15:31:23 falhou; ... ReceiveCount: 3
+18:30:50 8392 guia G-R-001 H-Recife
+...                                   (R-001 a R-020, em ordem)
+18:30:51 8392 guia G-R-020 H-Recife
+18:30:51 falhou; volta para a fila: mensagem sem requisicaoId {'ApproximateReceiveCount': '1'}
+18:31:06 falhou; volta para a fila: mensagem sem requisicaoId {'ApproximateReceiveCount': '2'}
+18:31:21 falhou; volta para a fila: mensagem sem requisicaoId {'ApproximateReceiveCount': '3'}
+...                                   (continuou voltando a cada 15 s)
 ```
 
-> ⚠️ Substituir pelos números da sua execução com o ElasticMQ (prints em `evidencias/`).
+**Dois consumidores (PIDs 4468 e 7884):**
+
+```
+consumidor PID 4468                          consumidor PID 7884
+18:48:12 4468 guia G-R-001 H-Recife          18:48:12 7884 guia G-R-002 H-Recife
+18:48:13 4468 guia G-R-003 H-Recife          18:48:13 7884 guia G-R-004 H-Recife
+...      (R-005 a R-019, ímpares)            ...      (R-006 a R-020, pares)
+18:48:13 FALHOU (ReceiveCount 1)             18:48:43 FALHOU (ReceiveCount 3)
+18:48:28 FALHOU (ReceiveCount 2)
+18:48:58 FALHOU (ReceiveCount 4)
+
+Guias geradas: consumidor 1 = 10  |  consumidor 2 = 10
+```
 
 | Experimento | Resultado |
 |---|---|
-| Um consumidor | 20 guias geradas; inválida voltou às ⚠️ __:__:__, __:__:__, __:__:__ com ReceiveCount 1, 2, 3 |
-| Dois consumidores | PID ⚠️ ___ gerou ⚠️ __ guias, PID ⚠️ ___ gerou ⚠️ __ guias; ordem ⚠️ (não) mantida |
-| DLQ (opcional) | após 3 tentativas a mensagem foi para `guias-dlq` |
+| Um consumidor | 20 guias geradas em ordem (R-001 a R-020); a inválida voltou às 18:30:51, 18:31:06, 18:31:21... com ReceiveCount 1, 2, 3... (chegou a 20 em ~5 min) |
+| Dois consumidores | PID 4468 gerou 10 guias (ímpares), PID 7884 gerou 10 guias (pares); processaram ao mesmo tempo, então não há uma ordem global; a inválida alternou entre os dois |
+| DLQ (opcional) | não executado; o script `criar_filas_com_dlq.py` está pronto para quem quiser testar |
 
 ## Respostas
 
@@ -123,7 +138,8 @@ Porque apagar é a forma de dizer para a fila "terminei, pode descartar". Enquan
 
 **2. Com dois consumidores, como as mensagens se dividiram? A ordem foi mantida? O que a documentação do SQS diz sobre ordem nas filas padrão?**
 
-As 20 mensagens se dividiram entre os dois processos, ⚠️ __ para um e __ para o outro. Não foi uma alternância certinha: cada `receive_message` pega até 10 mensagens de uma vez, então quem pede primeiro leva um lote, e os números ficaram embaralhados (um ficou com R-002, R-004, R-005... e o outro com R-001, R-003, R-006...). Olhando o conjunto, a ordem de envio **não foi mantida**.
+As 20 mensagens se dividiram certinho: **10 para cada consumidor**. No meu teste o PID 4468 ficou com as ímpares (R-001, R-003...) e o PID 7884 com as pares (R-002, R-004...). Essa alternância foi coincidência do momento em que cada um pediu mensagens: cada `receive_message` pode pegar até 10 de uma vez, e em outra execução a divisão pode sair desigual ou embaralhada.
+Sobre a ordem: com **um** consumidor as guias saíram de R-001 a R-020 em sequência. Com **dois**, cada um processou a sua parte ao mesmo tempo (tudo às 18:48:13), então não existe mais uma ordem única: a R-004 pode ficar pronta antes da R-003. Ou seja, a ordem de envio **não é mantida** quando há mais de um consumidor.
 A documentação do SQS diz que a fila padrão faz *best-effort ordering*: ela tenta entregar na ordem, mas não garante, e as mensagens podem chegar fora da ordem em que foram enviadas. Se a ordem importa, a opção é a fila **FIFO**, que garante ordem dentro de um mesmo grupo de mensagens (`MessageGroupId`) e faz deduplicação, com um limite menor de vazão.
 
 **3. A fila padrão garante entrega pelo menos uma vez, e a mesma mensagem pode chegar duas vezes. O que isso exige do consumidor? Como vocês o tornariam idempotente?**
@@ -133,8 +149,8 @@ Para tornar idempotente eu usaria o `requisicaoId` como chave: antes de gerar a 
 
 **4. Expliquem o visibility timeout com o que viram na mensagem inválida. Para que serve uma DLQ?**
 
-Quando um consumidor recebe a mensagem, ela não sai da fila: fica invisível para os outros por 15 s (o visibility timeout que configurei). A mensagem inválida dava erro, o consumidor não apagava, e 15 s depois ela reaparecia. Deu para ver isso no horário dos logs (⚠️ __:__:__, __:__:__, __:__:__) e no `ApproximateReceiveCount` subindo 1, 2, 3. No teste com dois consumidores ela inclusive pulou de um processo para o outro.
-O problema é que uma mensagem que nunca vai dar certo fica voltando para sempre, gastando processamento e poluindo o log. A **DLQ** (fila de mensagens mortas) resolve isso: depois de um número de tentativas (`maxReceiveCount`, usei 3) a fila tira a mensagem do fluxo principal e manda para a DLQ, onde alguém pode investigar, corrigir e reenviar. No meu teste opcional, depois da 3ª falha ela apareceu na `guias-dlq`.
+Quando um consumidor recebe a mensagem, ela não sai da fila: fica invisível para os outros por 15 s (o visibility timeout que configurei). A mensagem inválida dava erro, o consumidor não apagava, e 15 s depois ela reaparecia. Deu para ver isso no horário dos logs (18:30:51, 18:31:06, 18:31:21, sempre 15 s de diferença) e no `ApproximateReceiveCount` subindo 1, 2, 3, até 20. No teste com dois consumidores ela inclusive pulou de um processo para o outro: as tentativas 1 e 2 caíram no PID 4468, a 3 no PID 7884 e a 4 de novo no 4468, porque quando ela volta a ficar visível qualquer consumidor pode pegá-la.
+O problema é que uma mensagem que nunca vai dar certo fica voltando para sempre, gastando processamento e poluindo o log. No meu teste ela passou de 20 tentativas e continuaria indefinidamente. A **DLQ** (fila de mensagens mortas) resolve isso: depois de um número de tentativas (`maxReceiveCount`, por exemplo 3) a fila tira a mensagem do fluxo principal e manda para a DLQ, onde alguém pode investigar, corrigir e reenviar. Deixei no repositório o script `criar_filas_com_dlq.py`, que configura isso no ElasticMQ.
 
 **5. No Rota Vital, qual a diferença entre o hospital chamar a emissão de guia diretamente (síncrono) e passar por uma fila (assíncrono)? O que se ganha e o que se perde?**
 
@@ -144,8 +160,8 @@ No **assíncrono**, o hospital só publica o pedido e segue. Ganha-se resiliênc
 ## Uso de IA
 
 - **Ferramenta:** Claude (Anthropic).
-- **Finalidade:** apoio na organização do repositório e do README, script opcional da DLQ e revisão das respostas.
-- **Como validei:** ⚠️ rodei a fila, o produtor e os dois consumidores na minha máquina com o ElasticMQ, conferi a divisão das mensagens e a reentrega a cada 15 s nos logs (prints em `evidencias/`) e conferi na documentação do SQS os pontos sobre ordem, entrega pelo menos uma vez, visibility timeout e DLQ. As respostas foram ajustadas com os meus resultados.
+- **Finalidade:** apoio na organização do repositório e do README, script de demonstração (`demo_fila.sh`), script opcional da DLQ e revisão das respostas.
+- **Como validei:** rodei a fila, o produtor e os dois consumidores na minha máquina com o ElasticMQ, conferi a divisão das mensagens e a reentrega a cada 15 s nos logs (prints em `evidencias/`) e conferi na documentação do SQS os pontos sobre ordem, entrega pelo menos uma vez, visibility timeout e DLQ. As respostas foram ajustadas com os meus resultados.
 
 ## Referências
 

@@ -1,6 +1,6 @@
 # Evidências da Atividade 2
 
-Prints a colocar nesta pasta (nomes sugeridos):
+Prints da execução local (Windows 11 + Git Bash + ElasticMQ):
 
 | Arquivo | O que mostrar |
 |---|---|
@@ -9,4 +9,3 @@ Prints a colocar nesta pasta (nomes sugeridos):
 | `03-produtor.png` | `python produtor.py` com "21 mensagens enviadas" |
 | `04-um-consumidor.png` | 20 guias geradas e a inválida voltando com ReceiveCount 1, 2, 3 (horários a cada ~15 s) |
 | `05-dois-consumidores.png` | os dois terminais lado a lado, cada um com seu PID e suas guias |
-| `06-dlq.png` (opcional) | `criar_filas_com_dlq.py` e `ver_dlq.py` mostrando a mensagem na DLQ |
