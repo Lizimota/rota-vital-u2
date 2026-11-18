@@ -9,3 +9,5 @@ Aluna: Eliziane
 | Individual 2: Mensageria (ElasticMQ / SQS) | [`atividade2-mensageria/`](atividade2-mensageria/) | 01/12, 19h15 | [vídeo (Google Drive)](https://drive.google.com/file/d/1J1qE5Jh1LV92anGYNE9QPX6Xrfz57SsW/view?usp=drivesdk) |
 
 Cada pasta tem o seu README com como rodar, caminho escolhido, respostas às perguntas, evidências e a seção "Uso de IA".
+
+Repositório individual: código, evidências e respostas de cada atividade estão na respectiva pasta.
